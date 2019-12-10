@@ -1,0 +1,41 @@
+PREVENTING RECURSIVE FUTURE METHOD CALLS IN SALESFORCE
+
+One issue that you can run into when using future methods is writing a trigger with a future method that calls itself recursively. 
+Here is a simple scenario. 
+You have a trigger that inserts/updates a record (or a batch of them) and then makes a future method call that performs more processing on the same record
+The issue is that this entire process becomes recursive in nature and you receive the error, 
+"System.AsyncException: Future method cannot be called from a future method..." Here is what it looks like:
+
+
+https://blog.jeffdouglas.com/2009/10/02/preventing-recursive-future-method-calls-in-salesforce/
+
+https://res.cloudinary.com/blog-jeffdouglas-com/image/upload/v1400399498/mockup_zzegcj.png
+
+
+public class AccountProcessor{
+	@future
+	public static void processAccount(Set<String>names){
+		List<Account> accountsToUpdate = new List<String>();
+		for( Account a : [select id, name, isFutureContent_c from Account where UniqueNames_c IN; names]){
+			a.isFutureContent_c = true;
+			accountsToUpdate.add(a);
+		}
+		update accountsToUpdate;
+	}
+}
+
+----------------------------------------------------------------
+
+trigger ProcessAccounts on Account(before insert, before update){
+	List<String> uniquenames = new List<String>();
+	for(Account a : Trigger.New){
+		if(a.isFutureContent_c){
+			a.isFutureContent_c = false;
+		}else{
+			UniqueNames.add(a.UniqueNames_c);
+		}
+	if(!UniqueNames = isEmpty){
+		AccountProcess.processAccounts(uniquenames);
+	}
+	}
+}
